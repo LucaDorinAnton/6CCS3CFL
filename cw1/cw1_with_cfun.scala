@@ -109,7 +109,7 @@ def matcher(r: Rexp, s: String) : Boolean =
 
 //set for the CFUN class
 val letters_digits_and_chars = ('a' to 'z').toSet ++ ('0' to '9').toSet ++ Set[Char]('_', '.', '-')
-
+//Q5
 def char_class(c: Char) : Boolean = letters_digits_and_chars.contains(c)
 def atoZ(c: Char) : Boolean = ('a' to 'z').toSet.contains(c)
 def char_at(c: Char) : Boolean = c == '@'
@@ -147,7 +147,7 @@ ALT(
 )
 
 """
-
+//Q6
 def matchSlash(c: Char) : Boolean = c == '/'
 def matchStar(c: Char) : Boolean = c == '*'
 
@@ -161,11 +161,28 @@ val test3 = "/*test*/test*/" //false
 val test4 = "/*test/*test*/" // true
 
 
+//Q7
 
+val str0 = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+val str1 = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+val str2 = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 
+val reg_1 = SEQ(SEQ(CFUN(matchA), CFUN(matchA)), CFUN(matchA))
+val reg_2 = SEQ(NTIMES(CFUN(matchA), 19), OPTIONAL(CFUN(matchA)))
 
+val reg_1_mod = PLUS(PLUS(reg_1))
+val reg_2_mod = PLUS(PLUS(reg_2))
 
+"""
+str0 reg_1_mod: true
+str0 reg_2_mod: true
 
+str1 reg_1_mod: false
+str1 reg_2_mod: false
+
+str2 reg_1_mod: false
+str2 reg_2_mod: true
+"""
 
 
 
