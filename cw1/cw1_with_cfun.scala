@@ -52,9 +52,7 @@ def nullable (r: Rexp) : Boolean = r match {
 }
 
 // the derivative of a regular expression w.r.t. a character
-def der (c: Char, r: Rexp) : Rexp = {
-  println(c, r)
-  r match {
+def der (c: Char, r: Rexp) : Rexp = r match {
   case ZERO => ZERO
   case ONE => ZERO
   case CFUN(f) => if (f(c)) ONE else ZERO //implementation for CFUN
@@ -78,7 +76,7 @@ def der (c: Char, r: Rexp) : Rexp = {
   }
   case NOT(r) => NOT(der(c, r))
 }
-}
+
 
 def simp(r: Rexp) : Rexp = r match {
   case ALT(r1, r2) => (simp(r1), simp(r2)) match {
@@ -109,21 +107,46 @@ def matcher(r: Rexp, s: String) : Boolean =
   nullable(ders(s.toList, r))
 
 
+//set for the CFUN class
+val letters_digits_and_chars = ('a' to 'z').toSet ++ ('0' to '9').toSet ++ Set[Char]('_', '.', '-')
 
+def char_class(c: Char) : Boolean = letters_digits_and_chars.contains(c)
+def atoZ(c: Char) : Boolean = ('a' to 'z').toSet.contains(c)
+def char_at(c: Char) : Boolean = c == '@'
+def char_dot(c: Char) : Boolean = c == '.'
+def aToZandDot(c: Char) : Boolean = (('a' to 'z').toSet ++ Set[Char]('.')).contains(c)
+//regular expression for emails
+val email_1 = SEQ(PLUS(CFUN(char_class)), CFUN(char_at)) // matches everythin before @ including @
+val email_2 = SEQ(PLUS(CFUN(char_class)), CFUN(char_dot)) // matches from @ (exclusive) to . (inclusive)
+val email_3 = BETWEEN(CFUN(aToZandDot), 2, 6) //matches domain
+val email_4 = SEQ(email_1, email_2) // matches everything excluding domain
+val email_final = SEQ(email_4, email_3) // matches everythin
 
+val my_email = "luca-dorin.anton@kcl.ac.uk"
 
+val der_email = ders(my_email.toList, email_final)
 
+"""
+ der_email with fancy formatting...
 
+ALT(
+  SEQ(
+    SEQ(
+      STAR(
+        CFUN(<function1>)
+      ),
+      CFUN(<function1>)
+    ),
+    BETWEEN(
+      CFUN(<function1>)
+      ,2,6)
+  ),
+  BETWEEN(
+    CFUN(<function1>)
+    ,0,4)
+)
 
-
-
-
-
-
-
-
-
-
+"""
 
 
 
