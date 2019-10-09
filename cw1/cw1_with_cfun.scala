@@ -148,8 +148,17 @@ ALT(
 
 """
 
+def matchSlash(c: Char) : Boolean = c == '/'
+def matchStar(c: Char) : Boolean = c == '*'
 
 
+val weird_part = NOT(SEQ(SEQ(STAR(CFUN(matchAll)), CFUN(matchStar)), SEQ(CFUN(matchSlash), STAR(CFUN(matchAll)))))
+val weird = SEQ(SEQ(SEQ(SEQ(CFUN(matchSlash), CFUN(matchStar)), weird_part), CFUN(matchStar)), CFUN(matchSlash))
+
+val test1 = "/**/" /// true
+val test2 = "/*foobar*/" // true
+val test3 = "/*test*/test*/" //false
+val test4 = "/*test/*test*/" // true
 
 
 
