@@ -51,7 +51,7 @@ def nullable (r: Rexp) : Boolean = r match {
 def der (c: Char, r: Rexp) : Rexp = r match {
   case ZERO => ZERO
   case ONE => ZERO
-  case CHAR(d) => if (c == d) ONE else ZERO
+  case CFUN(f) => if (f(c)) ONE else ZERO //implementation for CFUN
   case ALT(r1, r2) => ALT(der(c, r1), der(c, r2))
   case SEQ(r1, r2) =>
     if (nullable(r1)) ALT(SEQ(der(c, r1), r2), der(c, r2))
@@ -59,6 +59,18 @@ def der (c: Char, r: Rexp) : Rexp = r match {
   case STAR(r1) => SEQ(der(c, r1), STAR(r1))
   case NTIMES(r, i) =>
     if (i == 0) ZERO else SEQ(der(c, r), NTIMES(r, i - 1))
+  // Added by me
+
+  case PLUS(r) => SEQ(der(c, r), STAR(r))
+  case OPTIONAL(r) => der(c, r)
+  case UPTO(r, n) => if (n == 0) ZERO else SEQ(der(c, r), UPTO(r, n - 1))
+  case FROM(r, n) => if (n == 0) ONE else SEQ(der(c, r), FROM(r, n - 1))
+  case BETWEEN(r, n, m)=> (n, m) match {
+    case (0, 0) => ONE
+    case (0, m) => SEQ(der(c, r), UPTO(r, m - 1))
+    case (n, m) => SEQ(der(c, r), BETWEEN(r, n - 1, m - 1))
+  }
+  case NOT(r) => NOT(der(c, r))
 }
 
 def simp(r: Rexp) : Rexp = r match {
@@ -90,8 +102,40 @@ def matcher(r: Rexp, s: String) : Boolean =
   nullable(ders(s.toList, r))
 
 
-// one or zero
-def OPT(r: Rexp) = ALT(r, ONE)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 // Test Cases
