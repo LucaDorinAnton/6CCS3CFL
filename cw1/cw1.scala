@@ -1,20 +1,32 @@
+// Coursework 1 solution by Luca-Dorin Anton - Student id 1710700
+// Based on re3.scala - 6CCS3CFL - Dr. Christian Urban
+
+
 // A version with simplification of derivatives;
 // this keeps the regular expressions small, which
 // is good for the run-time
- 
+
 
 abstract class Rexp
 case object ZERO extends Rexp
 case object ONE extends Rexp
 case class CHAR(c: Char) extends Rexp
-case class ALT(r1: Rexp, r2: Rexp) extends Rexp 
-case class SEQ(r1: Rexp, r2: Rexp) extends Rexp 
-case class STAR(r: Rexp) extends Rexp 
-case class NTIMES(r: Rexp, n: Int) extends Rexp 
+case class ALT(r1: Rexp, r2: Rexp) extends Rexp
+case class SEQ(r1: Rexp, r2: Rexp) extends Rexp
+case class STAR(r: Rexp) extends Rexp
+case class NTIMES(r: Rexp, n: Int) extends Rexp
+// added by me
+case class RANGE(s: Set[Char]) extends Rexp
+case class PLUS(r: Rexp) extends Rexp
+case class OPTIONAL(r: Rexp) extends Rexp
+case class UPTO(r: Rexp, n: Int) extends Rexp
+case class FROM(r: Rexp, n: Int) extends Rexp
+case class BETWEEN(r: Rexp, n: Int, m: Int) extends Rexp
+case class NOT(r: Rexp) extends Rexp
 
 
 
-// the nullable function: tests whether the regular 
+// the nullable function: tests whether the regular
 // expression can recognise the empty string
 def nullable (r: Rexp) : Boolean = r match {
   case ZERO => false
@@ -24,6 +36,15 @@ def nullable (r: Rexp) : Boolean = r match {
   case SEQ(r1, r2) => nullable(r1) && nullable(r2)
   case STAR(_) => true
   case NTIMES(r, i) => if (i == 0) true else nullable(r)
+  // Added by me
+
+  case RANGE(_) => false
+  case PLUS(r) => nullable(r)
+  case OPTIONAL(r) => true
+  case UPTO(_, _) => true
+  case FROM(r, n) => if (n == 0) true else nullable(r)
+  case BETWEEN(r, n ,m) => if (n == 0) true else nullable(r)
+  case NOT(r) => ! nullable(r)
 }
 
 // the derivative of a regular expression w.r.t. a character
@@ -32,11 +53,11 @@ def der (c: Char, r: Rexp) : Rexp = r match {
   case ONE => ZERO
   case CHAR(d) => if (c == d) ONE else ZERO
   case ALT(r1, r2) => ALT(der(c, r1), der(c, r2))
-  case SEQ(r1, r2) => 
+  case SEQ(r1, r2) =>
     if (nullable(r1)) ALT(SEQ(der(c, r1), r2), der(c, r2))
     else SEQ(der(c, r1), r2)
   case STAR(r1) => SEQ(der(c, r1), STAR(r1))
-  case NTIMES(r, i) => 
+  case NTIMES(r, i) =>
     if (i == 0) ZERO else SEQ(der(c, r), NTIMES(r, i - 1))
 }
 
@@ -65,7 +86,7 @@ def ders(s: List[Char], r: Rexp) : Rexp = s match {
 
 
 // the main matcher function
-def matcher(r: Rexp, s: String) : Boolean = 
+def matcher(r: Rexp, s: String) : Boolean =
   nullable(ders(s.toList, r))
 
 
@@ -99,7 +120,7 @@ for (i <- 0 to 6000000 by 500000) {
 }
 
 
-// size of a regular expressions - for testing purposes 
+// size of a regular expressions - for testing purposes
 def size(r: Rexp) : Int = r match {
   case ZERO => 1
   case ONE => 1
@@ -111,7 +132,7 @@ def size(r: Rexp) : Int = r match {
 }
 
 
-// now the size of the derivatives grows 
+// now the size of the derivatives grows
 // much, much slower
 
 size(ders("".toList, EVIL2))      // 5
@@ -120,8 +141,3 @@ size(ders("aa".toList, EVIL2))    // 8
 size(ders("aaa".toList, EVIL2))   // 8
 size(ders("aaaa".toList, EVIL2))  // 8
 size(ders("aaaaa".toList, EVIL2)) // 8
-
-
-
-
-
