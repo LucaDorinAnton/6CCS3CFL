@@ -1,0 +1,16 @@
+k if
+p (
+id a
+op <
+id b
+p )
+k then
+k skip
+k else
+id a
+op :=
+id a
+op *
+id b
+op +
+n 1
