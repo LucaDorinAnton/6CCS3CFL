@@ -115,7 +115,8 @@ case object Skip extends Stmt
 case class If(a: BExp, bl1: Block, bl2: Block) extends Stmt
 case class While(b: BExp, bl: Block) extends Stmt
 case class Assign(s: String, a: AExp) extends Stmt
-case class Write(s: String) extends Stmt
+case class WriteStr(s: String) extends Stmt
+case class WriteId(s: String) extends Stmt
 case class Read(s: String) extends Stmt
 
 
@@ -161,9 +162,9 @@ lazy val BExp: Parser[List[(String, String)], BExp] =
 lazy val Stmt: Parser[List[(String, String)], Stmt] =
   ((("k", "skip") ==> (_ => Skip: Stmt)) ||
    (IdParser ~ ("op", ":=") ~ AExp) ==> { case x ~ _ ~ z => Assign(x, z): Stmt } ||
-   (("k", "write") ~ IdParser) ==> { case _ ~ y => Write(y): Stmt } ||
-   (("k", "write") ~ ("p", "(") ~ IdParser ~ ("p", ")")) ==> { case _ ~ _ ~ y ~ _ => Write(y): Stmt } ||
-   (("k", "write") ~ StrParser) ==> { case _ ~ y => Write(y): Stmt } ||
+   (("k", "write") ~ IdParser) ==> { case _ ~ y => WriteId(y): Stmt } ||
+   (("k", "write") ~ ("p", "(") ~ IdParser ~ ("p", ")")) ==> { case _ ~ _ ~ y ~ _ => WriteId(y): Stmt } ||
+   (("k", "write") ~ StrParser) ==> { case _ ~ y => WriteStr(y): Stmt } ||
    (("k", "read") ~ IdParser) ==> { case _ ~ y => Read(y): Stmt } ||
    (("k", "if") ~ BExp ~ ("k", "then") ~ Block ~ ("k", "else") ~ Block) ==>
     { case _ ~ y ~ _ ~ u ~ _ ~ w => If(y, u, w): Stmt } ||
@@ -212,7 +213,8 @@ def eval_stmt(s: Stmt, env: Env) : Env = s match {
   case While(b, bl) =>
     if (eval_bexp(b, env)) eval_stmt(While(b, bl), eval_bl(bl, env))
     else env
-  case Write(x) => { println(env(x)) ; env }
+  case WriteId(x) => { println(env(x)) ; env }
+  case WriteStr(x) => { println(x); env}
   case Read(x) => env + (x -> scala.io.StdIn.readLine().toInt)
 }
 
@@ -235,16 +237,16 @@ def eval(bl: Block) : Env = eval_bl(bl, Map())
     val loops_tree = Stmts.parse_all(loops_tks).head
     val primes_tree = Stmts.parse_all(primes_tks).head
 
-    val test1_res = eval(test1_tree)
+    // val test1_res = eval(test1_tree) // don't eval as it will break
     val fib_res = eval(fib_tree)
     val primes_res = eval(primes_tree)
     val loops_res = eval(loops_tree)
 
 
-    println("----------------------------------")
-    println("--- test1 results ---")
-    println(test1_res)
-    println("----------------------------------")
+    //println("----------------------------------")
+    //println("--- test1 results ---")
+    // println(test1_res)
+    // println("----------------------------------")
 
     println("----------------------------------")
     println("--- fib results ---")
