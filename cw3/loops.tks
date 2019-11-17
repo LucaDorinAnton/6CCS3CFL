@@ -20,9 +20,6 @@ op <
 id x
 k do
 p {
-k write
-id x
-s ;
 k while
 n 0
 op <

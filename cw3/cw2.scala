@@ -304,7 +304,6 @@ def main(args: Array[String]): Unit = {
   y := start;
   z := start;
   while 0 < x do {
-   write x;
    while 0 < y do {
     while 0 < z do { z := z - 1 };
     z := start;
