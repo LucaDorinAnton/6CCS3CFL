@@ -1,3 +1,6 @@
+// Modiefied coursework2 to generate tokens to files
+// can be compiled/run directly with scalac/scala
+
 // Coursework 2 - 6CCS3CFL - Luca-Dorin Anton
 // Based on Dr. Christian Urban's lexer.scala - Lecture 4
 
@@ -171,7 +174,7 @@ val NOT_QUOTES = CFUN(_ != '"')
 val NOT_NEWLINES = CFUN(_ != '\n')
 
 val KEYWORD : Rexp =  "while" | "if" | "then" | "else" | "do" | "for" | "to" | "true" | "false" | "read" | "write" | "skip"
-val OP: Rexp = "+" | "-" | "*" | "%" | "/" | "==" | "!=" | ">" | "<" | ":=" | "&&" | "||"
+val OP: Rexp = "+" | "-" | "*" | "%" | "/" | "==" | "!=" | ">" | ">=" | "<" | "<=" | ":=" | "&&" | "||"
 val STR: Rexp = "\"" ~ NOT_QUOTES.% ~ "\""
 val PARA: Rexp = "{" | "}" | "(" | ")"
 val SEMI: Rexp = ";"
