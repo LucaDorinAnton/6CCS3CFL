@@ -173,7 +173,7 @@ val SYM = RANGE(('A' to 'Z').toSet ++ ('a' to 'z').toSet ++ ('0' to '9').toSet +
 val NOT_QUOTES = CFUN(_ != '"')
 val NOT_NEWLINES = CFUN(_ != '\n')
 
-val KEYWORD : Rexp =  "while" | "if" | "then" | "else" | "do" | "for" | "to" | "true" | "false" | "read" | "write" | "skip"
+val KEYWORD : Rexp =  "while" | "if" | "then" | "else" | "do" | "for" | "to" | "true" | "false" | "read" | "write" | "skip" | "upto"
 val OP: Rexp = "+" | "-" | "*" | "%" | "/" | "==" | "!=" | ">" | ">=" | "<" | "<=" | ":=" | "&&" | "||"
 val STR: Rexp = "\"" ~ NOT_QUOTES.% ~ "\""
 val PARA: Rexp = "{" | "}" | "(" | ")"
@@ -280,9 +280,6 @@ def lex_while(s: String) : List[(String, String)] =
 
 def main(args: Array[String]): Unit = {
 
-  val test1 = "if (a < b) then skip else a := a * b + 1"
-  val test1_tks = lex_while(test1)
-
   val fib = """write "Fib";
   read n;
   minus1 := 0;
@@ -299,42 +296,6 @@ def main(args: Array[String]): Unit = {
 
   val fib_tks = lex_while(fib)
 
-  val loops = """start := 1000;
-  x := start;
-  y := start;
-  z := start;
-  while 0 < x do {
-   while 0 < y do {
-    while 0 < z do { z := z - 1 };
-    z := start;
-    y := y - 1
-   };
-   y := start;
-   x := x - 1
-  }
-  """
-
-  val loops_tks = lex_while(loops)
-
-  val primes = """// prints out prime numbers from
-  // 2 to 100 (end)
-
-  end := 100;
-  n := 2;
-  while (n < end) do {
-    f := 2;
-    tmp := 0;
-    while ((f < n / 2 + 1) && (tmp == 0)) do {
-      if ((n / f) * f == n) then { tmp := 1 } else { skip };
-      f := f + 1
-    };
-    if (tmp == 0) then { write(n) } else { skip };
-    n := n + 1
-  }
-  """
-
-  val primes_tks = lex_while(primes)
-
   val fact = """	write "Input";
 	read n;
 	res := 1;
@@ -348,26 +309,29 @@ def main(args: Array[String]): Unit = {
 
   val fact_tks = lex_while(fact)
 
+  val for_test = """for i := 1 upto 10 do {
+    for i := 1 upto 10 do {
+        write i
+      }
+}"""
+
+  val for_test_tks = lex_while(for_test)
+
+
   import java.io._
-  val test1_writer = new PrintWriter(new File("test1.tks"))
-  test1_tks.map{ case (str1, str2) => test1_writer.write(s"$str1 $str2\n") }
-  test1_writer.close()
 
   val fib_writer = new PrintWriter(new File("fib.tks"))
   fib_tks.map{ case (str1, str2) => fib_writer.write(s"$str1 $str2\n") }
   fib_writer.close()
 
-  val loops_writer = new PrintWriter(new File("loops.tks"))
-  loops_tks.map{ case (str1, str2) => loops_writer.write(s"$str1 $str2\n") }
-  loops_writer.close()
-
-  val primes_writer = new PrintWriter(new File("primes.tks"))
-  primes_tks.map{ case (str1, str2) => primes_writer.write(s"$str1 $str2\n") }
-  primes_writer.close()
 
   val fact_writer = new PrintWriter(new File("fact.tks"))
   fact_tks.map{ case (str1, str2) => fact_writer.write(s"$str1 $str2\n") }
   fact_writer.close()
+
+  val for_test_writer = new PrintWriter(new File("for_test.tks"))
+  for_test_tks.map{ case (str1, str2) => for_test_writer.write(s"$str1 $str2\n") }
+  for_test_writer.close()
  }
 
 }

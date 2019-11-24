@@ -116,7 +116,7 @@ case class If(a: BExp, bl1: Block, bl2: Block) extends Stmt
 case class While(b: BExp, bl: Block) extends Stmt
 case class Assign(s: String, a: AExp) extends Stmt
 case class WriteStr(s: String) extends Stmt
-case class WriteId(s: String) extends Stmt
+case class WriteAExp(a: AExp) extends Stmt
 case class Read(s: String) extends Stmt
 
 
@@ -162,8 +162,7 @@ lazy val BExp: Parser[List[(String, String)], BExp] =
 lazy val Stmt: Parser[List[(String, String)], Stmt] =
   ((("k", "skip") ==> (_ => Skip: Stmt)) ||
    (IdParser ~ ("op", ":=") ~ AExp) ==> { case x ~ _ ~ z => Assign(x, z): Stmt } ||
-   (("k", "write") ~ IdParser) ==> { case _ ~ y => WriteId(y): Stmt } ||
-   (("k", "write") ~ ("p", "(") ~ IdParser ~ ("p", ")")) ==> { case _ ~ _ ~ y ~ _ => WriteId(y): Stmt } ||
+   (("k", "write") ~ AExp) ==> { case _ ~ y => WriteAExp(y): Stmt } ||
    (("k", "write") ~ StrParser) ==> { case _ ~ y => WriteStr(y): Stmt } ||
    (("k", "read") ~ IdParser) ==> { case _ ~ y => Read(y): Stmt } ||
    (("k", "if") ~ BExp ~ ("k", "then") ~ Block ~ ("k", "else") ~ Block) ==>
@@ -213,7 +212,7 @@ def eval_stmt(s: Stmt, env: Env) : Env = s match {
   case While(b, bl) =>
     if (eval_bexp(b, env)) eval_stmt(While(b, bl), eval_bl(bl, env))
     else env
-  case WriteId(x) => { println(env(x)) ; env }
+  case WriteAExp(x) => { println(eval_aexp(x, env)); env }
   case WriteStr(x) => { println(x); env}
   case Read(x) => env + (x -> scala.io.StdIn.readLine().toInt)
 }
@@ -225,43 +224,33 @@ def eval_bl(bl: Block, env: Env) : Env = bl match {
 
 def eval(bl: Block) : Env = eval_bl(bl, Map())
 
+def time[R](block: => R): R = {
+    val t0 = System.nanoTime()
+    val result = block    // call-by-name
+    val t1 = System.nanoTime()
+    println("Elapsed time: " + (t1 - t0) + "ns, " + ((t1 - t0)/1000000) + "ms, " + (((t1 - t0)/1000000)/1000) + "seconds.")
+    result
+}
 
   def main(args: Array[String]): Unit = {
     val test1_tks = readTks("test1.tks")
     val fib_tks = readTks("fib.tks")
     val loops_tks = readTks("loops.tks")
     val primes_tks = readTks("primes.tks")
+    val fact_tks = readTks("fact.tks")
 
     val test1_tree = Stmts.parse_all(test1_tks).head
     val fib_tree = Stmts.parse_all(fib_tks).head
     val loops_tree = Stmts.parse_all(loops_tks).head
     val primes_tree = Stmts.parse_all(primes_tks).head
+    val fact_tree = Stmts.parse_all(fact_tks).head
 
-    // val test1_res = eval(test1_tree) // don't eval as it will break
-    val fib_res = eval(fib_tree)
-    val primes_res = eval(primes_tree)
-    val loops_res = eval(loops_tree)
+    // time(eval(test1_tree)) // don't eval as it will break
+    // time(eval(fib_tree))
+    // time(eval(primes_tree))
+    // time(eval(loops_tree))
+    eval(fact_tree)
 
-
-    //println("----------------------------------")
-    //println("--- test1 results ---")
-    // println(test1_res)
-    // println("----------------------------------")
-
-    println("----------------------------------")
-    println("--- fib results ---")
-    println(fib_res)
-    println("----------------------------------")
-
-    println("----------------------------------")
-    println("--- primes results ---")
-    println(primes_res)
-    println("----------------------------------")
-
-    println("----------------------------------")
-    println("--- loops results ---")
-    println(loops_res)
-    println("----------------------------------")
   }
 
 }
