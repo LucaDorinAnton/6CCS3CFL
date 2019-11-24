@@ -1,6 +1,6 @@
 // Coursework 4 - Luca-Dorin Anton - 6CCS3CFL
 
-//  Based on Dr Christian Urban's comb2.scala,  and my cw3 implementation and
+//  Based on Dr Christian Urban's comb2.scala, compile.scala  and my cw3 implementation and 
 
 // A parser and compiler for the While language
 object ParsePiler {
