@@ -133,7 +133,7 @@ case class Call(name: String , args: List[Exp]) extends Exp
 case class If(a: BExp , e1: Exp , e2: Exp) extends Exp
 case class Var(s: String) extends Exp
 case class Num(i: Int) extends Exp // integer numbers
-case class FNum(i: Float) extends Exp // floating numbers
+case class FNum(f: Float) extends Exp // floating numbers
 case class Aop(o: String , a1: Exp , a2: Exp) extends Exp
 case class Sequence(e1: Exp , e2: Exp) extends Exp
 case class Bop(o: String , a1: Exp , a2: Exp) extends BExp

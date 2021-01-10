@@ -1,4 +1,4 @@
-// A Small LLVM Compiler for a Simple Functional Language
+// A Small LLVM Compiler for a Simple Typed Functional Language
 // (includes an external lexer and parser)
 //
 //
@@ -57,14 +57,16 @@ def Fresh(x: String) = {
 abstract class KExp
 abstract class KVal
 
-case class KVar(s: String) extends KVal
-case class KNum(i: Int) extends KVal
-case class Kop(o: String, v1: KVal, v2: KVal) extends KVal
-case class KCall(o: String, vrs: List[KVal]) extends KVal
-case class KWrite(v: KVal) extends KVal
+case class KVar(s: String , ty: String = "UNDEF") extends KVal
+case class KInt(i: Int) extends KVal
+case class KFloat(f: Float) extends KVal
 
-case class KLet(x: String, e1: KVal, e2: KExp) extends KExp {
-  override def toString = s"LET $x = $e1 in \n$e2" 
+case class Kop(o: String, v1: KVal, v2: KVal, ty: String = "UNDEF") extends KVal
+case class KCall(o: String, vrs: List[KVal], ty: String = "UNDEF") extends KVal
+case class KRef(o: String, ty: String = "UNDEF") extends KVal
+
+case class KLet(x: String, e1: KVal, e2: KExp, ty: String = "UNDEF") extends KExp {
+  override def toString = s"LET $x : $ty = $e1 in \n$e2" 
 }
 case class KIf(x1: String, e1: KExp, e2: KExp) extends KExp {
   def pad(e: KExp) = e.toString.replaceAll("(?m)^", "  ")
@@ -72,14 +74,19 @@ case class KIf(x1: String, e1: KExp, e2: KExp) extends KExp {
   override def toString = 
      s"IF $x1\nTHEN\n${pad(e1)}\nELSE\n${pad(e2)}"
 }
-case class KReturn(v: KVal) extends KExp
+case class KReturn(v: KVal, ty: String = "UNDEF") extends KExp
 
 
 // CPS translation from Exps to KExps using a
 // continuation k.
 def CPS(e: Exp)(k: KVal => KExp) : KExp = e match {
-  case Var(s) => k(KVar(s)) 
-  case Num(i) => k(KNum(i))
+  case Var(s) if s.head.isLower => k(KVar(s)) 
+  case Var(s) if s.head.isUpper => {
+    val z = Fresh("tmp")
+    KLet(z, KRef(s), k(KVar(z)))
+  }
+  case Num(i) => k(KInt(i))
+  case FNum(f) => k(KFloat(f))
   case Aop(o, e1, e2) => {
     val z = Fresh("tmp")
     CPS(e1)(y1 => 
@@ -103,86 +110,67 @@ def CPS(e: Exp)(k: KVal => KExp) : KExp = e match {
   }
   case Sequence(e1, e2) => 
     CPS(e1)(_ => CPS(e2)(y2 => k(y2)))
-  case Write(e) => {
-    val z = Fresh("tmp")
-    CPS(e)(y => KLet(z, KWrite(y), k(KVar(z))))
-  }
 }   
 
 //initial continuation
-def CPSi(e: Exp) = CPS(e)(KReturn)
-
-//some testcases:
-// numbers and vars   
-println(CPSi(Num(1)).toString)
-println(CPSi(Var("z")).toString)
-
-//  a * 3
-val e1 = Aop("*", Var("a"), Num(3))
-println(CPSi(e1).toString)
-
-// (a * 3) + 4
-val e2 = Aop("+", Aop("*", Var("a"), Num(3)), Num(4))
-println(CPSi(e2).toString)
-
-// 2 + (a * 3)
-val e3 = Aop("+", Num(2), Aop("*", Var("a"), Num(3)))
-println(CPSi(e3).toString)
-
-//(1 - 2) + (a * 3)
-val e4 = Aop("+", Aop("-", Num(1), Num(2)), Aop("*", Var("a"), Num(3)))
-println(CPSi(e4).toString)
-
-// 3 + 4 ; 1 * 7
-val es = Sequence(Aop("+", Num(3), Num(4)),
-                  Aop("*", Num(1), Num(7)))
-println(CPSi(es).toString)
-
-// if (1 == 1) then 3 else 4
-val e5 = If(Bop("==", Num(1), Num(1)), Num(3), Num(4))
-println(CPSi(e5).toString)
-
-// if (1 == 1) then 3 + 7 else 4 * 2
-val ei = If(Bop("==", Num(1), Num(1)), 
-                Aop("+", Num(3), Num(7)),
-                Aop("*", Num(4), Num(2)))
-println(CPSi(ei).toString)
+def CPSi(e: Exp) = CPS(e)({x => KReturn(x)})
 
 
-// if (10 != 10) then e5 else 40
-val e6 = If(Bop("!=", Num(10), Num(10)), e5, Num(40))
-println(CPSi(e6).toString)
+type TyEnv = Map[String, String]
+
+def isBool(o: String) = Set("==", "!=", "<", "<=", ">", ">=").contains(o)
+
+def val_type(v: KVal) : String = v match {
+  case KVar(_, s) => s
+  case KInt(_) => "Int"
+  case KFloat(_) => "Double"
+  case Kop(_, _, _, s) => s
+  case KCall(_, _, s) => s
+  case KRef(_, s) => s
+}
+
+def typ_val(v: KVal , local_ty: TyEnv, global_ty: TyEnv) : KVal = v match {
+  case KVar(s, _) if s.head.isLower => KVar(s, local_ty.get(s).get)
+  case KInt(i) => KInt(i)
+  case KFloat(f) => KFloat(f)
+  case Kop(o, v1, v2, _) => {
+    val new_v1 = typ_val(v1, local_ty, global_ty)
+    val new_v2 = typ_val(v2, local_ty, global_ty)
+    if (isBool(o)) Kop(o, new_v1, new_v2, "Bool")
+    else Kop(o, new_v1, new_v2, val_type(new_v1))
+  }
+  case KCall(n, args, _) => {
+    val new_args = args.map({arg => typ_val(arg, local_ty, global_ty)}).toList
+    KCall(n, new_args, global_ty.get(n).get)
+  }
+  case KRef(s, _) => KRef(s, global_ty.get(s).get) 
+}
 
 
-// foo(3)
-val e7 = Call("foo", List(Num(3)))
-println(CPSi(e7).toString)
-
-// foo(3 * 1, 4, 5 + 6)
-val e8 = Call("foo", List(Aop("*", Num(3), Num(1)), 
-                          Num(4), 
-                          Aop("+", Num(5), Num(6))))
-println(CPSi(e8).toString)
-
-// a * 3 ; b + 6
-val e9 = Sequence(Aop("*", Var("a"), Num(3)), 
-                  Aop("+", Var("b"), Num(6)))
-println(CPSi(e9).toString)
-
-
-val e10 = Aop("*", Aop("+", Num(1), Call("foo", List(Var("a"), Num(3)))), Num(4))
-println(CPSi(e10).toString)
-
-
-
-
+def typ_exp(a: KExp , local_ty: TyEnv, global_ty: TyEnv) : (KExp, TyEnv) = a match {
+  case KLet(n, v, e, _) => {
+    val new_v = typ_val(v, local_ty, global_ty)
+    val let_ty = val_type(new_v)
+    val new_e = typ_exp(e, local_ty + (n -> let_ty), global_ty)
+    (KLet(n, new_v, new_e._1, let_ty), new_e._2)
+  }
+  case KIf(x1, e1, e2) => {
+    val new_e1 = typ_exp(e1, local_ty, global_ty)
+    val new_e2 = typ_exp(e2, new_e1._2, global_ty)
+    (KIf(x1, new_e1._1, new_e2._1), new_e2._2)
+  }
+  case KReturn(v, _) => {
+    val new_v = typ_val(v, local_ty, global_ty)
+    (KReturn(new_v, val_type(new_v)), local_ty)
+  }
+}
 
 // convenient string interpolations 
 // for instructions, labels and methods
 import scala.language.implicitConversions
 import scala.language.reflectiveCalls
 
-implicit def sring_inters(sc: StringContext) = new {
+implicit def string_inters(sc: StringContext) = new {
     def i(args: Any*): String = "   " ++ sc.s(args:_*) ++ "\n"
     def l(args: Any*): String = sc.s(args:_*) ++ ":\n"
     def m(args: Any*): String = sc.s(args:_*) ++ "\n"
@@ -194,29 +182,58 @@ def compile_op(op: String) = op match {
   case "*" => "mul i32 "
   case "-" => "sub i32 "
   case "/" => "sdiv i32 "
-  case "%" => "srem i32 "
   case "==" => "icmp eq i32 "
   case "<=" => "icmp sle i32 "     // signed less or equal
   case "<"  => "icmp slt i32 "     // signed less than
 }
 
+def compile_dop(op: String) = op match {
+case "+" => "fadd double "
+case "*" => "fmul double "
+case "-" => "fsub double "
+case "==" => "fcmp oeq double "
+case "<=" => "fcmp ole double "
+case "<" => "fcmp olt double "
+}
+
+def typ_to_ll(t: String) = t match {
+  case "Int" => "i32"
+  case "Double" => "double"
+  case "Bool" => "i1"
+  case "Void" => "void"
+}
+
+def compile_and_format(v: KVal) : String = {
+  val compiled_v = compile_val(v)
+  s"${typ_to_ll(val_type(v))} $compiled_v"
+}
+
 // compile K values
 def compile_val(v: KVal) : String = v match {
-  case KNum(i) => s"$i"
-  case KVar(s) => s"%$s"
-  case Kop(op, x1, x2) => 
+  case KInt(i) => s"$i"
+  case KFloat(f) => s"$f"
+  case KVar(s, _) => s"%$s"
+  case KRef(s, t) => s"load ${typ_to_ll(t)} , ${typ_to_ll(t)}* @$s"
+  case Kop(op, x1, x2, t) if(val_type(x1) == "Double") => 
+    s"${compile_dop(op)} ${compile_val(x1)}, ${compile_val(x2)}"
+  case Kop(op, x1, x2, t) => 
     s"${compile_op(op)} ${compile_val(x1)}, ${compile_val(x2)}"
-  case KCall(x1, args) => 
-    s"call i32 @$x1 (${args.map(compile_val).mkString("i32 ", ", i32 ", "")})"
-  case KWrite(x1) =>
-    s"call i32 @printInt (i32 ${compile_val(x1)})"
+  case KCall(x1, args, t) => 
+    s"call ${typ_to_ll(t)} @$x1(${args.map(compile_and_format).mkString(", ")})"
+ 
+    
 }
 
 // compile K expressions
 def compile_exp(a: KExp) : String = a match {
-  case KReturn(v) =>
-    i"ret i32 ${compile_val(v)}"
-  case KLet(x: String, v: KVal, e: KExp) => 
+  case KReturn(v, "Void") =>
+    i"ret void"
+  case KReturn(v, ty) =>
+    i"ret ${typ_to_ll(ty)} ${compile_val(v)}"
+  
+  case KLet(_, KCall(o, vrs, "Void"), e, _) =>
+    i"${compile_val(KCall(o, vrs, "Void"))}" ++ compile_exp(e)
+  case KLet(x: String, v: KVal, e: KExp, _) => 
     i"%$x = ${compile_val(v)}" ++ compile_exp(e)
   case KIf(x, e1, e2) => {
     val if_br = Fresh("if_branch")
@@ -231,37 +248,100 @@ def compile_exp(a: KExp) : String = a match {
 
 
 val prelude = """
-@.str = private constant [4 x i8] c"%d\0A\00"
 
 declare i32 @printf(i8*, ...)
 
-define i32 @printInt(i32 %x) {
-   %t0 = getelementptr [4 x i8], [4 x i8]* @.str, i32 0, i32 0
-   call i32 (i8*, ...) @printf(i8* %t0, i32 %x) 
-   ret i32 %x
+@.str_nl = private constant [2 x i8] c"\0A\00"
+@.str_star = private constant [2 x i8] c"*\00"
+@.str_space = private constant [2 x i8] c" \00"
+
+define void @new_line() #0 {
+  %t0 = getelementptr [2 x i8], [2 x i8]* @.str_nl, i32 0, i32 0
+  %1 = call i32 (i8*, ...) @printf(i8* %t0)
+  ret void
 }
 
+define void @print_star() #0 {
+  %t0 = getelementptr [2 x i8], [2 x i8]* @.str_star, i32 0, i32 0
+  %1 = call i32 (i8*, ...) @printf(i8* %t0)
+  ret void
+}
+
+define void @print_space() #0 {
+  %t0 = getelementptr [2 x i8], [2 x i8]* @.str_space, i32 0, i32 0
+  %1 = call i32 (i8*, ...) @printf(i8* %t0)
+  ret void
+}
+
+define void @skip() #0 {
+  ret void
+}
+
+@.str = private constant [4 x i8] c"%d\0A\00"
+
+define void @print_int(i32 %x) {
+   %t0 = getelementptr [4 x i8], [4 x i8]* @.str, i32 0, i32 0
+   call i32 (i8*, ...) @printf(i8* %t0, i32 %x) 
+   ret void
+}
+
+; END OF BUILD-IN FUNCTIONS (prelude)
 """
+
+val init_global : TyEnv = Map(
+  ("new_line" -> "Void"),
+  ("print_star" -> "Void"),
+  ("print_space" -> "Void"),
+  ("skip" -> "Void"),
+  ("print_int" -> "Void")
+)
+
+def format_arg(arg: (String, String)) : String = s"${typ_to_ll(arg._2)} %${arg._1}"
+
 
 
 // compile function for declarations and main
-def compile_decl(d: Decl) : String = d match {
-  case Def(name, args, body) => { 
-    m"define i32 @$name (${args.mkString("i32 %", ", i32 %", "")}) {" ++
-    compile_exp(CPSi(body)) ++
-    m"}\n"
+def compile_decl(d: Decl, global_ty: TyEnv) : (String, TyEnv) = d match {
+  case Const(n, i) => {
+    ( m"@$n = global i32 ${i.toString}", global_ty + (n -> "Int"))
   }
+
+  case FConst(n, f) => {
+    ( m"@$n = global double ${f.toString}", global_ty + (n -> "Double"))
+  }
+
+  case Def(name, args, ty, body) => {
+    val local_ty = args.toMap
+    val k_bod = CPSi(body)
+    val typed_bod = typ_exp(k_bod, local_ty, global_ty + (name -> ty))
+    val compiled_bod = compile_exp(typed_bod._1) 
+    ( m"define ${typ_to_ll(ty)} @$name (${args.map(format_arg).mkString(", ")}) {" ++
+    compiled_bod ++
+    m"}\n", global_ty + (name -> ty))
+  }
+
   case Main(body) => {
-    m"define i32 @main() {" ++
-    compile_exp(CPS(body)(_ => KReturn(KNum(0)))) ++
-    m"}\n"
+    val k_bod = CPS(body)(_ => KReturn(KInt(0)))
+    val typed_bod = typ_exp(k_bod, Map(), global_ty)
+    val compiled_bod = compile_exp(typed_bod._1)
+    ( m"define i32 @main() {" ++
+    compiled_bod ++
+    m"}\n", global_ty )
   }
 }
 
+def compile_helper(prog: List[Decl], global_ty: TyEnv = init_global) : (String, TyEnv) = prog match {
+  case Nil => ("", global_ty)
+  case d::rest => {
+    val compiled_d = compile_decl(d, global_ty)
+    val compiled_rest = compile_helper(rest, compiled_d._2)
+    (compiled_d._1 ++ compiled_rest._1, compiled_rest._2)
+  }
+}
 
 // main compiler functions
 def compile(prog: List[Decl]) : String = 
-  prelude ++ (prog.map(compile_decl).mkString)
+  prelude ++ compile_helper(prog)._1.mkString
 
 
 import ammonite.ops._
@@ -331,3 +411,66 @@ fibC(10, x => {println(s"Result: $x") ; 1})
 
 
 */
+
+
+
+//some testcases:
+// numbers and vars   
+println(CPSi(Num(1)).toString)
+println(CPSi(Var("z")).toString)
+
+//  a * 3
+val e1 = Aop("*", Var("a"), Num(3))
+println(CPSi(e1).toString)
+
+// (a * 3) + 4
+val e2 = Aop("+", Aop("*", Var("a"), Num(3)), Num(4))
+println(CPSi(e2).toString)
+
+// 2 + (a * 3)
+val e3 = Aop("+", Num(2), Aop("*", Var("a"), Num(3)))
+println(CPSi(e3).toString)
+
+//(1 - 2) + (a * 3)
+val e4 = Aop("+", Aop("-", Num(1), Num(2)), Aop("*", Var("a"), Num(3)))
+println(CPSi(e4).toString)
+
+// 3 + 4 ; 1 * 7
+val es = Sequence(Aop("+", Num(3), Num(4)),
+                  Aop("*", Num(1), Num(7)))
+println(CPSi(es).toString)
+
+// if (1 == 1) then 3 else 4
+val e5 = If(Bop("==", Num(1), Num(1)), Num(3), Num(4))
+println(CPSi(e5).toString)
+
+// if (1 == 1) then 3 + 7 else 4 * 2
+val ei = If(Bop("==", Num(1), Num(1)), 
+                Aop("+", Num(3), Num(7)),
+                Aop("*", Num(4), Num(2)))
+println(CPSi(ei).toString)
+
+
+// if (10 != 10) then e5 else 40
+val e6 = If(Bop("!=", Num(10), Num(10)), e5, Num(40))
+println(CPSi(e6).toString)
+
+
+// foo(3)
+val e7 = Call("foo", List(Num(3)))
+println(CPSi(e7).toString)
+
+// foo(3 * 1, 4, 5 + 6)
+val e8 = Call("foo", List(Aop("*", Num(3), Num(1)), 
+                          Num(4), 
+                          Aop("+", Num(5), Num(6))))
+println(CPSi(e8).toString)
+
+// a * 3 ; b + 6
+val e9 = Sequence(Aop("*", Var("a"), Num(3)), 
+                  Aop("+", Var("b"), Num(6)))
+println(CPSi(e9).toString)
+
+
+val e10 = Aop("*", Aop("+", Num(1), Call("foo", List(Var("a"), Num(3)))), Num(4))
+println(CPSi(e10).toString)
