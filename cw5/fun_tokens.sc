@@ -1,4 +1,4 @@
-// A tokeniser for the Fun language
+// A tokeniser for the Fun Typed language
 //==================================
 //
 // call with 
@@ -218,10 +218,10 @@ val COMMENT = ("/*" ~ ALL2.% ~ "*/") | ("//" ~ ALL.% ~ "\n")
 
 
 val FUN_REGS = (("k" $ KEYWORD) | 
+                  ("t" $ TYPE_QUAL) | 
                   ("i" $ ID) |
                   ("int" $ INTEGER) |
                   ("fl" $ FLOATING) |
-                  ("t" $ TYPE_QUAL) | 
                   ("o" $ OP) | 
                   ("s" $ SEMI) | 
                   ("c" $ COMMA) |
@@ -245,7 +245,7 @@ case object T_RBRACKET extends Token
 case class T_ID(s: String) extends Token
 case class T_OP(s: String) extends Token
 case class T_INT(n: Int) extends Token
-case class T_FLOAT(f: Double) extends Token
+case class T_FLOAT(f: Float) extends Token
 case class T_TYPE(t: String) extends Token
 case class T_KWD(s: String) extends Token
 
@@ -254,7 +254,7 @@ val token : PartialFunction[(String, String), Token] = {
   case ("i", s) => T_ID(s)
   case ("o", s) => T_OP(s)
   case ("int", s) => T_INT(s.toInt)
-  case ("fl", s) => T_FLOAT(s.toDouble)
+  case ("fl", s) => T_FLOAT(s.toFloat)
   case ("t", s) => T_TYPE(s)
   case ("s", _) => T_SEMI
   case ("c", _) => T_COMMA
